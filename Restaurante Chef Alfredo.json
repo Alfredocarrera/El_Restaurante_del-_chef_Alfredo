@@ -1,0 +1,428 @@
+{
+  "name": "Restaurante Chef Alfredo",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "d93e1d76-9d49-491e-89a1-906b48ff9c11",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        112
+      ],
+      "webhookId": "59222f1f-1d40-4380-b842-01f63beb49f9",
+      "credentials": {
+        "telegramApi": {
+          "id": "7SR0UqAU482IB4JU",
+          "name": "Token de Telegram Rest_Alfredo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres \"Chef_Alfredo\", el asistente virtual inteligente de atención y pedidos del restaurante.\nTu objetivo es atender a los clientes de forma amable, clara y rápida a través de Telegram.\nREGLAS DE INTERACCIÓN:\n1. Si el usuario saluda o pide ver el menú, invoca la herramienta 'get_menu'.\n2. Si el usuario quiere agregar un producto o modificar su pedido, invoca 'manage_cart'.\n3. Si el usuario confirma que desea finalizar su compra, invoca 'checkout_order'.\n4. Siempre que presentes productos o confirmaciones, utiliza respuestas estructuradas sugeridas por las herramientas.\n5. Mantén un tono servicial, breve y enfocado en resolver el pedido rápidamente.",
+        "options": {}
+      },
+      "id": "66f069bb-475c-4575-9b7f-ec0699ca8d65",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "id": "371e5db9-4df1-4caa-af37-8d231f0e3881",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        176,
+        256
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ouxAFbUzUjQ6Mob5",
+          "name": "Rest_Alfredo_pago"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "id": "2bacc9d5-6935-40cb-85da-4388ca838953",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ],
+        "additionalFields": {}
+      },
+      "id": "81e9c64d-069e-4d1b-a832-13e8a12951b5",
+      "name": "Telegram Trigger (Callback Query)",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        432
+      ],
+      "webhookId": "faef340c-86be-4d0c-9f9b-e90a17b59eaa",
+      "credentials": {
+        "telegramApi": {
+          "id": "7SR0UqAU482IB4JU",
+          "name": "Token de Telegram Rest_Alfredo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const callbackQuery = $input.item.json.callback_query;\nconst callbackData = callbackQuery.data;\nconst parts = callbackData.split('_');\n\nconst estadoMap = {\n  'preparacion': 'En Preparación',\n  'encamino': 'En Camino',\n  'entregado': 'Entregado'\n};\n\nreturn {\n  json: {\n    nuevo_estado: estadoMap[parts[1]] || 'Actualizado',\n    id_pedido: parts[2],\n    cliente_chat_id: parts[3] || callbackQuery.message.chat.id\n  }\n};"
+      },
+      "id": "123042ed-d004-41e7-9cd7-3d921b570fef",
+      "name": "Code: Mapeo de Estados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Restaurante_del_Chef_Alfredo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "PEDIDOS"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "0afb8b07-c0d6-4b45-89c4-dead0baa5d5d",
+      "name": "Google Sheets: Update Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        432
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MP4vqye5gOn1rClM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.cliente_chat_id }}",
+        "text": "=🛵 Tu pedido *#{{ $json.id_pedido }}* ha cambiado a estado: *{{$json.nuevo_estado }}*",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e56c7d9f-2f0d-4424-94b8-bca705c88b78",
+      "name": "Telegram: Notificar Cliente",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        432
+      ],
+      "webhookId": "08e70d1b-294a-4dec-9736-4ed8e1dcb1c5",
+      "credentials": {
+        "telegramApi": {
+          "id": "7SR0UqAU482IB4JU",
+          "name": "Token de Telegram Rest_Alfredo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 22
+            }
+          ]
+        }
+      },
+      "id": "d01d0c60-fb4a-4974-8c46-5ebe1fe0b15f",
+      "name": "Schedule Trigger (10:00 PM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Restaurante_del_Chef_Alfredo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "PEDIDOS"
+        },
+        "options": {}
+      },
+      "id": "360dbeba-8665-47f2-9564-8b39fb43f52b",
+      "name": "Google Sheets: Get All Orders",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        656
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MP4vqye5gOn1rClM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const orders = $items(\"Google Sheets: Get All Orders\").map(item => item.json);\nconst today = new Date().toISOString().split('T')[0];\nconst todayOrders = orders.filter(o => o.fecha === today);\n\nif (todayOrders.length === 0) {\n  return {\n    json: {\n      report_markdown: `📊 *REPORTE DIARIO DE VENTAS (${today})*\\n\\nNo se registraron pedidos hoy.`\n    }\n  };\n}\n\nlet totalRevenue = 0;\nconst productCounts = {};\nconst hourCounts = Array(24).fill(0);\n\ntodayOrders.forEach(order => {\n  totalRevenue += parseFloat(order.total_pago || 0);\n  const items = (order.detalles_pedido || \"\").split(', ');\n  items.forEach(itemStr => {\n    const parts = itemStr.match(/^(\\d+)x\\s+(.+)\\s+\\(Q/);\n    if (parts) {\n      const qty = parseInt(parts[1]);\n      const name = parts[2];\n      productCounts[name] = (productCounts[name] || 0) + qty;\n    }\n  });\n\n  if (order.hora) {\n    const hour = parseInt(order.hora.split(':')[0]);\n    if (!isNaN(hour)) {\n      hourCounts[hour]++;\n    }\n  }\n});\n\nlet topProduct = \"N/A\";\nlet maxQty = 0;\nfor (const [prod, qty] of Object.entries(productCounts)) {\n  if (qty > maxQty) {\n    maxQty = qty;\n    topProduct = `${prod} (${qty} unidades)`;\n  }\n}\n\nlet peakHour = \"N/A\";\nlet maxOrdersInHour = 0;\nhourCounts.forEach((count, hour) => {\n  if (count > maxOrdersInHour) {\n    maxOrdersInHour = count;\n    const formatHour = hour.toString().padStart(2, '0');\n    peakHour = `${formatHour}:00 - ${formatHour}:59 (${count} pedidos)`;\n  }\n});\n\nconst reportMarkdown = `\n📊 *REPORTE DIARIO DE VENTAS - RESTAURANTE CHEF ALFREDO*\n📅 *Fecha:* ${today}\n💰 *Total Vendido:* Q${totalRevenue.toFixed(2)}\n📦 *Total Pedidos:* ${todayOrders.length}\n⭐ *Producto Estrella:* ${topProduct}\n🔥 *Hora Pico:* ${peakHour}\n`;\n\nreturn {\n  json: {\n    report_markdown: reportMarkdown\n  }\n};"
+      },
+      "id": "29c61c7d-296f-43a8-9ade-39822973664e",
+      "name": "Code: Consolidación de Métricas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "[ID_GRUPO_ADMIN]",
+        "text": "={{ $json.report_markdown }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "ac502c64-7228-4d11-a002-5fbc57e9bbb4",
+      "name": "Telegram: Enviar Reporte",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        656
+      ],
+      "webhookId": "03e3c598-9a9f-4098-aadc-d380c4014b96",
+      "credentials": {
+        "telegramApi": {
+          "id": "7SR0UqAU482IB4JU",
+          "name": "Token de Telegram Rest_Alfredo"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1O8LxDnJy9uns5Y89QB7AbJxGwkpwuppE1PiGH6eePss",
+          "mode": "list",
+          "cachedResultName": "Restaurante_del_Chef_Alfredo",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O8LxDnJy9uns5Y89QB7AbJxGwkpwuppE1PiGH6eePss/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Menu",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1O8LxDnJy9uns5Y89QB7AbJxGwkpwuppE1PiGH6eePss/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        544,
+        96
+      ],
+      "id": "579da0d3-0b48-43af-afff-95af95f9b921",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MP4vqye5gOn1rClM",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Leemos los productos que vinieron de Google Sheets\nconst items = $items().map(item => item.json);\n\n// Si la hoja está vacía\nif (items.length === 0) {\n  return [{\n    json: {\n      texto_menu: \"📋 Por el momento no tenemos productos disponibles en el menú.\"\n    }\n  }];\n}\n\n// Agrupamos los productos por categoría\nconst categorias = {};\nitems.forEach(prod => {\n  const cat = prod.categoria || \"General\";\n  if (!categorias[cat]) categorias[cat] = [];\n  categorias[cat].push(prod);\n});\n\n// Construimos el texto del menú\nlet mensaje = \"📋 *MENÚ DEL RESTAURANTE CHEF ALFREDO*\\n\\n\";\n\nfor (const [cat, productos] of Object.entries(categorias)) {\n  mensaje += `*--- ${cat.toUpperCase()} ---*\\n`;\n  productos.forEach(p => {\n    const disponiblidad = parseInt(p.stock) > 0 ? `Q${parseFloat(p.precio).toFixed(2)}` : \"❌ Agotado\";\n    mensaje += `• *${p.nombre}* - ${disponiblidad}\\n  _${p.descripcion || ''}_\\n`;\n  });\n  mensaje += \"\\n\";\n}\n\nmensaje += \"💡 *¿Qué te gustaría pedir hoy?* Escríbeme el nombre del producto y la cantidad.\";\n\nreturn [{\n  json: {\n    texto_menu: mensaje\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        80
+      ],
+      "id": "2c954233-fbe4-41e4-89aa-818c02b56698",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger (Callback Query)": {
+      "main": [
+        [
+          {
+            "node": "Code: Mapeo de Estados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Mapeo de Estados": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Update Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets: Update Row": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Notificar Cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (10:00 PM)": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Get All Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets: Get All Orders": {
+      "main": [
+        [
+          {
+            "node": "Code: Consolidación de Métricas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Consolidación de Métricas": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Enviar Reporte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ff65388e-e784-45a6-8a66-be88cd5101fe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fda2ea8c4f75571340c96cb1a399bb31373e1a4b63805c6653af0c3b15c3086d"
+  },
+  "nodeGroups": [],
+  "id": "qVv9QYwy1FDJqNl2",
+  "tags": []
+}
